@@ -49,3 +49,13 @@ Questa prima fase del progetto si occupa di:
   ]
 }
 ```
+
+# Dipendenze
+
+Questo programma richiede il database vettoriale **Qdrant** per funzionare. Si consiglia di eseguirlo come segue:
+
+
+```bash  
+docker pull qdrant/qdrant  
+docker run -p 6333:6333 -v $(pwd)/storage/qdrant:/qdrant/storage qdrant/qdrant  
+```  

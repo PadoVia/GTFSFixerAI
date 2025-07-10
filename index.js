@@ -1,62 +1,104 @@
-import { OpenAI, OpenAIEmbedding } from "@llamaindex/openai";
-
-process.env.NODE_NO_WARNINGS = '1';
-
 import 'dotenv/config';
-import { Settings } from 'llamaindex';
+import setup from './utils/setup.js';
 import { agent } from "@llamaindex/workflow";
+import { queryLine } from './services/queryLine.js';
 import * as chrono from 'chrono-node';
 
 const articolo = `
-LA NOTTE BIANCA DI BOJON 2025” A BOJON (VE).
 
-Autolinea: E071 PADOVA – VIGONOVO – S. ANGELO DI P. – BOJON – LOVA 
 
-Si informa che, per lo svolgimento della manifestazione denominata “LA NOTTE BIANCA DI BOJON 2025” a Bojon (Ordinanza comune di Campolongo Maggiore VE n.18 del 18-06-2025), nella giornata di sabato 5 luglio 2025 dalle ore 18.30 e fino al termine del servizio, verrà chiusa al traffico via Villa, dalla rotatoria di via Rovine alla rotatoria di via Durighello.  Pertanto, tutte le corse dell’autolinea in oggetto dovranno effettuare la seguente deviazione al normale percorso di linea: 
+“FOLPO SUMMER FESTIVAL 2025” A NOVENTA PADOVANA (PD) Autolinea: E073 PADOVA – NOVENTA P. - STRA
 
-Da Padova: giunti a Bojon in via Villa, alla rotatoria con via Rovine si svolterà a sinistra per la stessa e alla successiva rotatoria a destra per via Corsivola.
+Si informa che, in occasione della manifestazione denominata “Folpo Summer Festival 2025”, il centro di Noventa Padovana sarà interdetto alla circolazione stradale. Pertanto, nei seguenti giorni e orari:
 
-Alla rotatoria dopo il sottopasso si proseguirà dritti per il deposito o a sinistra per continuare la corsa per Lova. 
+    Giovedì 10 luglio dalle ore 9.30 fino termine servizio
+    Venerdì 11 luglio dalle ore 17.00 fino termine servizio
+    Sabato 12 luglio dalle ore 17.00 fino termine servizio
 
-Fermate sospese:
+le corse delle autolinee in oggetto effettueranno il seguente percorso in deviazione:
 
-·         Bojon R
+da Padova: giunti in via Undicesima strada si svolterà a sinistra in via Nona Strada, si manterrà la destra in via Serenissima, alla rotatoria si proseguirà in via Serenissima seguendo le indicazioni per Noventa Padovana centro e alla rotatoria successiva si svolterà a destra in via Valmarana, continuando fino a Strà (non si entra in centro a Noventa Padovana). 
 
-·         Bojon P. Livello R
+da Stra:  percorso inverso.
 
- 
+FERMATE SOSPESE:
 
-Fermate sostitutive:
+Ø  Via Caduti sul Lavoro
 
-·         F.ta ACTV in via Rovine
+Ø  Centro Fitness
+
+Ø  Villaggio Sant’Antonio
+
+Ø  Bar Industria
+
+FERMATE SOSTITUTIVE:
+
+Ø  Fermata provvisoria in via nona/undicesima strada
+
+Ø  Via Valmarana
+
+Ø  Noventa scuole
+
 `;
 
-async function main(articolo, sourceUrl = 'https://www.fsbusitalia.it/it/veneto/news-veneto/2025/7/4/la-notte-bianca-di-bojon-2025--a-bojon--ve--.html') {
+const initialQuery = `
+    Qual è il titolo dell'articolo? Rispondi con il titolo senza preamboli. Se non c'è un titolo, rispondi con "null".
+    
+    L'articolo riguarda una deviazione? Ha senso modificare le fermate del GTFS per questo articolo? Rispondi con 1 per sì e con 0 per no.
+    
+    Voglio la risposta in questo formato JSON:
+    {
+        "title": "Il titolo dell'articolo",
+        "is_necessary": 1 // 1 se è necessario modificare i dati GTFS, 0 altrimenti
+    }`;
 
-    // Setup LLM
-    if (!process.env.OPENAI_API_KEY) {
-        console.error('⚠ OPENAI_API_KEY isn\'t defined in .env.');
-        process.exit(1);
+const detailQuery = `
+    Rispondi con un oggetto JSON che contiene le seguenti informazioni:
+    {
+        "affected_lines": ["linea 1", "linea 2"], // Quali sono le linee interessate dalla deviazione? Se tutte le linee sono interessate, rispondi con []. 
+        "suspended_stops": ["fermata 1", "fermata 2"], // Quali fermate sono sospese a causa della deviazione? Se non ci sono fermate sospese, rispondi con [].
+        "replacement_stops": ["fermata 1", "fermata 2"], // Quali fermate sostitutive sono state create? Se non ci sono fermate sostitutive, rispondi con [].
+        "time_intervals": [] // Descrizione fornita dopo
     }
+    
+    Cerca di includere la descrizione della linea o della fermata quando presente, invece di presentare solo l'id o il nome, metti tutto quanto.
+    
+    Ecco i dettagli su come creare time_intervals, Usa questo formato:
+    [
+        {
+            "start": "2025-07-05 18:30:00",
+            "end": "2025-07-05 23:59:59"
+        },
+        {
+            "start": "2025-07-06 18:30:00",
+            "end": "2025-07-06 23:59:59"
+        }
+    ]
+    
+    Se non è menzionata un dato di inizio o fine, non c'è problema, non mettere start o end, l'importante è non inventare e attenerti solo ai dati dell'articolo.
+    
+    Se per esempio viene solo detto che la deviazione è in vigore dal 10 agosto alle 18:30, rispondi con
+    [
+        {
+            "start": "2025-08-10 18:30:00"
+        }
+    ]
+    
+    Stai attento a situazioni in cui ci sono più giorni indicati. Per esempio dire venerdì e sabato da ore x a y, vuol dire che ci sono due intervalli: uno venerdì da x a y e uno sabato da x a y. Indica entrambi.
+    
+    Per aiutarti e inferire informazioni, ti dico qual è la data di ORA: ${new Date().toLocaleDateString()} e l'ora è ${new Date().toLocaleTimeString('it')}.
+    `;
 
-    Settings.llm = new OpenAI({
-        model: 'gpt-3.5-turbo',
-        apiKey: process.env.OPENAI_API_KEY,
-    });
+async function main(articolo, sourceUrl = 'https://www.fsbusitalia.it/it/veneto/news-veneto/2025/7/4/la-notte-bianca-di-bojon-2025--a-bojon--ve--.html') {
+    await setup();
 
-    Settings.embedModel = new OpenAIEmbedding();
-
-    const ragAgent = agent({
-        tools: [
-
-        ],
+    const articleAgent = agent({
+        tools: [],
         systemPrompt: `
         Sei un agente AI per leggere articoli di aziende di trasporto e modificare i dati GTFS. 
         
-        Sto per fornirti un articolo di un\'azienda di trasporto. Leggilo e rispondi alla domanda che ti farò dopo. 
-        
-        La domanda verrà inserita tra i simboli ***
-        
+        Sto per fornirti un articolo di un'azienda di trasporto. Leggilo e rispondi alle domande che ti farò dopo. 
+                
         Non includere preamboli, informazioni aggiuntive o spiegazioni. La tua risposta deve contenere solo l'informazione richiesta.
         
         Se non hai abbastanza informazioni per rispondere, rispondi con "null".
@@ -66,64 +108,29 @@ async function main(articolo, sourceUrl = 'https://www.fsbusitalia.it/it/veneto/
         `,
     });
 
-    // Controlliamo se l'articolo è effettivamente una deviazione e vale la pena modificare i dati GTFS
+    // Facciamo una query iniziale per capire se un articolo effettivamente riguarda una deviazione e se è necessario modificare i dati GTFS.
+    const initialQueryData = JSON.parse(await runQuery(initialQuery, articleAgent));
 
-    const title = await runQuery(
-        `Qual è il titolo dell'articolo? Rispondi con il titolo senza preamboli. Se non c'è un titolo, rispondi con "null".`,
-        ragAgent
-    );
+    if (`${initialQueryData.is_necessary}`.includes('0')) return uselessArticle(initialQueryData.title, sourceUrl);
 
-    const isNecessary = await runQuery(
-        `L'articolo riguarda una deviazione? Ha senso modificare le fermate del GTFS per questo articolo? Rispondi con 1 per sì e con 0 per no.`,
-        ragAgent
-    );
+    // Indaghiamo ulteriormente per ottenere i dettagli della deviazione.
+    let completedQueries;
 
-    if (isNecessary.includes('0')) return uselessArticle(title, sourceUrl);
-
-    // Approfondiamo l'articolo per estrarre le informazioni necessarie
-    // Piccola nota, non dire all'AI di usare ora in formato ISO, tende a confondersi molto con i fusi orari.
-
-    const queryMap = {
-        'affected_lines': `Quali sono le linee interessate dalla deviazione? Rispondi con i descrittori delle linee separati in un formato JSON, quindi ["linea 1", "linea 2"]. Se tutte le linee sono interessate, rispondi con [].`,
-        'suspended_stops': `Quali fermate sono sospese a causa della deviazione? Rispondi con i nomi delle fermate sospese separati in un formato JSON, quindi ["fermata 1", "fermata 2"]. Se non ci sono fermate sospese, rispondi con [].`,
-        'replacement_stops': `Quali fermate sostitutive sono state create a causa della deviazione? Rispondi con i nomi delle fermate sostitutive separati in un formato JSON, quindi ["fermata 1", "fermata 2"]. Se non ci sono fermate sostitutive, rispondi con [].`,
-        'time_intervals': `Devi creare un oggetto JSON con gli intervalli in cui questa deviazione è in effetto. Il formato che devi utilizzare è il seguente:
-        [
-            {
-                "start": "2025-07-05 18:30:00",
-                "end": "2025-07-05 23:59:59"
-            },
-            {
-                "start": "2025-07-06 18:30:00",
-                "end": "2025-07-06 23:59:59"
-            }
-        ]
-        
-        Se non è menzionata un dato di inizio o fine, non c'è problema, non mettere start o end, l'importante è non inventare e attenerti solo ai dati dell'articolo.
-        
-        Se per esempio viene solo detto che la deviazione è in vigore dal 10 agosto alle 18:30, rispondi con
-        [
-            {
-                "start": "2025-08-10 18:30:00"
-            }
-        ]
-        Per aiutarti e inferire informazioni, ti dico qual è la data di ORA: ${new Date().toLocaleDateString()} e l'ora è ${new Date().toLocaleTimeString('it')}.
-        `,
-    }
-
-    const completedQueries = {};
-    for (const [key, query] of Object.entries(queryMap)) {
-        completedQueries[key] = await runQuery(query, ragAgent);
+    try {
+        completedQueries = JSON.parse(await runQuery(detailQuery, articleAgent));
+    } catch(e) {
+        console.log('❌ Error parsing JSON from LLM response:', e.message);
+        return uselessArticle(initialQueryData.title, sourceUrl);
     }
 
     const result = {
-        title: title,
+        title: initialQueryData.title,
         source_url: sourceUrl,
         timestamp: new Date().toISOString(),
-        affected_lines: queryLine(completedQueries['affected_lines']),
-        suspended_stops: queryStops(completedQueries['suspended_stops']),
-        replacement_stops: queryStops(completedQueries['replacement_stops']),
-        time_intervals: processDateRanges(completedQueries['time_intervals']),
+        affected_lines: await queryLine(completedQueries['affected_lines'] || []),
+        suspended_stops: queryStops(completedQueries['suspended_stops'] || []),
+        replacement_stops: queryStops(completedQueries['replacement_stops'] || []),
+        time_intervals: processDateRanges(completedQueries['time_intervals'] || []),
     };
 
     return JSON.stringify(result);
@@ -132,11 +139,9 @@ async function main(articolo, sourceUrl = 'https://www.fsbusitalia.it/it/veneto/
 console.log(await main(articolo).catch(console.error));
 
 async function runQuery(query, ragAgent) {
-    console.log(`⚙ Executing query: '${query}'`);
-
     const response = await ragAgent.run(query);
 
-    console.log ('✅ Query result: ', response.data.result);
+    console.log('✅ Query result: ', response.data.result);
 
     return response.data.result;
 }
@@ -150,39 +155,21 @@ function uselessArticle(title, sourceUrl) {
         suspended_stops: [],
         replacement_stops: [],
         time_intervals: null,
-    })
-}
-
-// Ciò che ci darà l'LLM è solo un descrittore delle linee. Dobbiamo andare a cercare nei dati GTFS per trovare esattamente la linea corrispondente.
-function queryLine(lineDescriptions) {
-    return JSON.parse(lineDescriptions);
+    });
 }
 
 // Ciò che ci darà l'LLM è solo un descrittore delle fermate. Dobbiamo andare a cercare nei dati GTFS per trovare esattamente la linea corrispondente.
 function queryStops(stopDescriptions) {
-    return JSON.parse(stopDescriptions);
+    return stopDescriptions
 }
 
 // Function to process the JSON string
-function processDateRanges(jsonString) {
-    // Parse the JSON string
-    let dateRanges;
-    try {
-        dateRanges = JSON.parse(jsonString);
-    } catch (e) {
-        return null;
-    }
-
-    // Validate the structure
-    if (!Array.isArray(dateRanges)) {
-        return null;
-    }
-
+function processDateRanges(dateRanges) {
     const result = [];
 
     dateRanges.forEach((range) => {
-        let parsedStart = null,
-        parsedEnd = null;
+        let parsedStart = null;
+        let parsedEnd = null;
 
         // Parse time strings using chrono
         if (range.start) parsedStart = chrono.parseDate(range.start, new Date());
@@ -191,7 +178,7 @@ function processDateRanges(jsonString) {
         result.push({
             start: parsedStart,
             end: parsedEnd,
-        })
+        });
     });
 
     return result;
