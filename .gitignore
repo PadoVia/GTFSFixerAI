@@ -1,0 +1,8 @@
+# IDE
+.idea
+
+# JS MODULES
+node_modules
+
+# DB
+articoli.db
