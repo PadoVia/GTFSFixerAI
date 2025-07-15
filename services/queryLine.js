@@ -90,21 +90,17 @@ export async function queryLine(lineDescriptions) {
     return resultingLines
 }
 
-async function updateLineEmbeddings() {
+export async function updateLineEmbeddings() {
     // Filtriamo per avere solo le informazioni necessarie
     const filteredData = data.map(({ route_short_name, route_id, route_long_name }) =>
-        `Route: route_short_name: ${route_short_name} | route_id: ${route_id} | route_long_name: ${route_long_name} | End route, \n\n`
+        `Linea: route_short_name: ${route_short_name} | route_id: ${route_id} | route_long_name: ${route_long_name} | Fine Linea, \n\n`
     );
 
     const allLines = new Document({
         text: filteredData.join('\n')
     });
 
-    console.log(`✅ Formattato ${filteredData.length} linee in un documento`);
+    console.log(`✅ Formatted ${filteredData.length} lines in a single document.`);
 
     await VectorStoreIndex.fromDocuments([allLines], { storageContext: await gtfsLinesStorageContext });
 }
-
-updateLineEmbeddings().then(() => {
-   console.log('✅ Embeddings of GTFS lines updated.');
-});

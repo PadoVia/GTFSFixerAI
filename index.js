@@ -2,10 +2,10 @@ import 'dotenv/config';
 import setup from './utils/setup.js';
 import { agent } from "@llamaindex/workflow";
 import { queryLine } from './services/queryLine.js';
+import { queryStops } from './services/queryStop.js';
 import * as chrono from 'chrono-node';
 
 const articolo = `
-
 
 “FOLPO SUMMER FESTIVAL 2025” A NOVENTA PADOVANA (PD) Autolinea: E073 PADOVA – NOVENTA P. - STRA
 
@@ -38,7 +38,6 @@ FERMATE SOSTITUTIVE:
 Ø  Via Valmarana
 
 Ø  Noventa scuole
-
 `;
 
 const initialQuery = `
@@ -128,8 +127,8 @@ async function main(articolo, sourceUrl = 'https://www.fsbusitalia.it/it/veneto/
         source_url: sourceUrl,
         timestamp: new Date().toISOString(),
         affected_lines: await queryLine(completedQueries['affected_lines'] || []),
-        suspended_stops: queryStops(completedQueries['suspended_stops'] || []),
-        replacement_stops: queryStops(completedQueries['replacement_stops'] || []),
+        suspended_stops: await queryStops(completedQueries['suspended_stops'] || []),
+        replacement_stops: await queryStops(completedQueries['replacement_stops'] || []),
         time_intervals: processDateRanges(completedQueries['time_intervals'] || []),
     };
 
@@ -156,11 +155,6 @@ function uselessArticle(title, sourceUrl) {
         replacement_stops: [],
         time_intervals: null,
     });
-}
-
-// Ciò che ci darà l'LLM è solo un descrittore delle fermate. Dobbiamo andare a cercare nei dati GTFS per trovare esattamente la linea corrispondente.
-function queryStops(stopDescriptions) {
-    return stopDescriptions
 }
 
 // Function to process the JSON string
