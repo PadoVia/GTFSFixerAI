@@ -1,43 +1,13 @@
 import 'dotenv/config';
 import setup from './utils/setup.js';
 import { agent } from "@llamaindex/workflow";
-import { queryLine } from './services/queryLine.js';
-import { queryStops } from './services/queryStop.js';
+import { queryLine } from './lib/queryLine.js';
+import { queryStops } from './lib/queryStop.js';
 import * as chrono from 'chrono-node';
 
+/// TODO SOSTITUIRE CON INPUT VERO
 const articolo = `
 
-“FOLPO SUMMER FESTIVAL 2025” A NOVENTA PADOVANA (PD) Autolinea: E073 PADOVA – NOVENTA P. - STRA
-
-Si informa che, in occasione della manifestazione denominata “Folpo Summer Festival 2025”, il centro di Noventa Padovana sarà interdetto alla circolazione stradale. Pertanto, nei seguenti giorni e orari:
-
-    Giovedì 10 luglio dalle ore 9.30 fino termine servizio
-    Venerdì 11 luglio dalle ore 17.00 fino termine servizio
-    Sabato 12 luglio dalle ore 17.00 fino termine servizio
-
-le corse delle autolinee in oggetto effettueranno il seguente percorso in deviazione:
-
-da Padova: giunti in via Undicesima strada si svolterà a sinistra in via Nona Strada, si manterrà la destra in via Serenissima, alla rotatoria si proseguirà in via Serenissima seguendo le indicazioni per Noventa Padovana centro e alla rotatoria successiva si svolterà a destra in via Valmarana, continuando fino a Strà (non si entra in centro a Noventa Padovana). 
-
-da Stra:  percorso inverso.
-
-FERMATE SOSPESE:
-
-Ø  Via Caduti sul Lavoro
-
-Ø  Centro Fitness
-
-Ø  Villaggio Sant’Antonio
-
-Ø  Bar Industria
-
-FERMATE SOSTITUTIVE:
-
-Ø  Fermata provvisoria in via nona/undicesima strada
-
-Ø  Via Valmarana
-
-Ø  Noventa scuole
 `;
 
 const initialQuery = `
@@ -135,6 +105,7 @@ async function main(articolo, sourceUrl = 'https://www.fsbusitalia.it/it/veneto/
     return JSON.stringify(result);
 }
 
+/// TODO SOSTITUIRE CON ENDPOINT VERO
 console.log(await main(articolo).catch(console.error));
 
 async function runQuery(query, ragAgent) {

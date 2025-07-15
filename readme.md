@@ -111,13 +111,28 @@ Questa prima fase del progetto si occupa di:
 
 # Dipendenze
 
-Questo programma richiede il database vettoriale **Qdrant** per funzionare. Si consiglia di eseguirlo come segue:
+> Non dimenticare di riempire l'.env seguendo `utils/exampleEnv`
 
+> Il modello utilizzato può essere cambiato in `utils/setup.js` 
+
+Questo programma richiede il database vettoriale **Qdrant** per funzionare. Si consiglia di eseguirlo come segue:
 
 ```bash  
 docker pull qdrant/qdrant  
 docker run -p 6333:6333 -v $(pwd)/storage/qdrant:/qdrant/storage qdrant/qdrant  
 ```  
+
+Prima di eseguire il programma, assicurati di aver riempito `storage/gtfs/` con il GTFS in formato **JSON**.
+
+Poi esegui:
+
+```bash
+node services/updateLineEmbeddings.js
+node services/updateStopEmbeddings.js
+```
+
+Il secondo comando potrebbe richiedere un po' di tempo, a seconda della dimensione del GTFS. Se è meno di 10 minuti non preoccuparti.
+
 
 # Come funziona
 
@@ -183,3 +198,7 @@ Per `suspended_stops` e `replacement_stops` si utilizza la funzione `queryStop()
 3. Ricerca attraverso il Place API di Google Maps, che può identificare solo coordinate geografiche ma chiaramente non fermate. Questo è per quando si invetano una fermata che non esiste nel GTFS.
 
 Il risultato di tutte queste ricerche viene combinato e restituito come un JSON arricchito, vedere output di esempio.
+
+# TODO
+
+Questo codice deve essere integrato con la parte di scraping. Le parti da aggiornare sono marcate con `TODO`.
