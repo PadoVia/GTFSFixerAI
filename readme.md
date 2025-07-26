@@ -2,139 +2,95 @@
 
 **GTFSFixerAI** è uno strumento basato su intelligenza artificiale per l'estrazione automatica delle deviazioni del servizio di trasporto pubblico locale (TPL) da fonti testuali non strutturate. Il sistema supporta l’aggiornamento semiautomatico dei feed GTFS a partire da comunicazioni pubblicate sui siti ufficiali degli operatori.
 
+Correntemente contiene il supporto per i seguenti operatori:
+- BusItalia Veneto, Padova (biv)
+- Mobilità di Marca, Treviso (mom)
+
 ---
 
-## 🚀 Obiettivo (Fase 1)
+## 🚀 Feature
 
 Questa prima fase del progetto si occupa di:
 
 - Scraping delle notizie da fonti ufficiali (ad es. siti MOM e BIVE)
 - Parsing automatico del testo tramite un modulo AI (LLM)
   - Estrazione delle **fermate sospese**
-  - Estrazione delle **fermate sostitutive**
-- Verifica e geolocalizzazione delle fermate tramite **Google Maps API**
-- Generazione di un output in **JSON standardizzato**, utile per il patching manuale o automatico dei feed GTFS
+  - Estrazione delle **fermate sostitutive** 
+  - Estrazione degli **intervalli di tempo** interessati
+  - Estrazione delle **linee interessate** 
+- Verifica e geolocalizzazione delle fermate tramite **Google Places API**
+- Generazione di un output in **JSON standardizzato**, utile per il patching manuale o automatico dei feed GTFS, salvato in un database SQLite assieme ad uno storico di articoli.
 
----
+## ⚠️Dipendenze e configurazione
 
-## 📥 Input
-
-- URL e contenuto delle news pubblicate dagli operatori TPL
-- Testo HTML (estratto tramite scraping)
-- API Key per Google Maps (fornita dall'utente)
-
----
-
-## 📤 Output (esempio)
-
-```json
-{
-  "title": "FOLPO SUMMER FESTIVAL 2025",
-  "source_url": "https://www.fsbusitalia.it/it/veneto/news-veneto/2025/7/10/-folpo-summer-festival-2025--a-noventa-padovana--pd--autolinea--.html",
-  "timestamp": "2025-07-15T19:40:10.986Z",
-  "affected_lines": [
-    {
-      "route_short_name": "E073",
-      "route_id": "196",
-      "route_long_name": "STRA-NOVENTA PADOVANA-PADOVA"
-    }
-  ],
-  "suspended_stops": [
-    {
-      "stop_id": "6798",
-      "stop_code": "6737",
-      "stop_desc": "V. CADUTI SUL LAVORO",
-      "lat": "45.4123077392578",
-      "long": "11.9481954574585"
-    },
-    {
-      "stop_id": "6103",
-      "stop_code": "6027",
-      "stop_desc": "NOVENTA P. CENTRO FITNESS",
-      "lat": "45.4117622375488",
-      "long": "11.9438724517822"
-    },
-    {
-      "stop_id": null,
-      "stop_code": null,
-      "stop_desc": "Villaggio Sant’Antonio",
-      "lat": 45.4097359,
-      "long": 11.9420088
-    },
-    {
-      "stop_id": "9929",
-      "stop_code": "9922",
-      "stop_desc": "Industria 66",
-      "lat": "45.4108009338379",
-      "long": "11.9288196563721"
-    }
-  ],
-  "replacement_stops": [
-    {
-      "stop_id": null,
-      "stop_code": null,
-      "stop_desc": "Fermata provvisoria in via nona/undicesima strada",
-      "lat": 45.41081,
-      "long": 11.93114
-    },
-    {
-      "stop_id": null,
-      "stop_code": null,
-      "stop_desc": "Via Valmarana",
-      "lat": 45.4335673,
-      "long": 11.8935217
-    },
-    {
-      "stop_id": "9882",
-      "stop_code": "9874",
-      "stop_desc": "CAMIN SCUOLE R",
-      "lat": "45.3978652954102",
-      "long": "11.9445171356201"
-    }
-  ],
-  "time_intervals": [
-    {
-      "start": "2025-07-10T07:30:00.000Z",
-      "end": "2025-07-10T21:59:59.000Z"
-    },
-    {
-      "start": "2025-07-11T15:00:00.000Z",
-      "end": "2025-07-11T21:59:59.000Z"
-    },
-    {
-      "start": "2025-07-12T15:00:00.000Z",
-      "end": "2025-07-12T21:59:59.000Z"
-    }
-  ]
-}
-```
-
-# Dipendenze
-
-> Non dimenticare di riempire l'.env seguendo `utils/exampleEnv`
-
-> Il modello utilizzato può essere cambiato in `utils/setup.js` 
-
-Questo programma richiede il database vettoriale **Qdrant** per funzionare. Si consiglia di eseguirlo come segue:
+**Requisito 1**: Istallare il database **Qdrant**. Si consiglia di eseguirlo come segue:
 
 ```bash  
 docker pull qdrant/qdrant  
 docker run -p 6333:6333 -v $(pwd)/storage/qdrant:/qdrant/storage qdrant/qdrant  
 ```  
 
-Prima di eseguire il programma, assicurati di aver riempito `storage/gtfs/` con il GTFS in formato **JSON**.
+**Requisito 2** Riempire `storage/gtfs/` con il GTFS in formato **JSON**: Ogni operatore deve avere una sua cartella, nel nostro caso `storage/gtfs/mom/` e `storage/gtfs/biv/`. Gli unici file necessari sono `stops.json` e `routes.json`.
 
-Poi esegui:
+**Requisito 3**: Creare un file `.env` nella cartella principale del progetto. Un esempio di file `.env` è disponibile in `utils/exampleEnv`.
+
+### Configurazione `.env`
+
+- `LOGGING_LEVEL` Il logging level è configurabile con due modalità, prod (`0`) e debug (`1`).
+- `OPENAI_MODEL` Il modello OpenAI da utilizzare per l'analisi. Si consiglia di utilizzare `gpt-3.5-turbo`.
+- `ARTICLE_ANALYSIS_LIMIT` Il numero massimo di articoli da analizzare per volta. Spiegato meglio nella sezione "Esecuzione".
+- `[operator]_CENTER_LATITUDE` e `[operator]_CENTER_LONGITUDE` Le coordinate del centro dell'area di interesse per ogni operatore, utilizzate per il bias dato all'API di Google Places. Da configurare per ogni operatore utilizzato.
+
+## ➡ Esecuzione
+
+I vari comandi eseguibili si trovano in `services/`. Prima di fare analisi è necessario popolare gli embedding vettoriali in Qdrant sulla base del GTFS. Per fare ciò è necessario eseguire questi comandi:
 
 ```bash
 node services/updateLineEmbeddings.js
 node services/updateStopEmbeddings.js
 ```
 
-Il secondo comando potrebbe richiedere un po' di tempo, a seconda della dimensione del GTFS. Se è meno di 10 minuti non preoccuparti.
+Il secondo comando potrebbe richiedere un po' di tempo, a seconda delle dimensioni del GTFS. Se è meno di 20 minuti non preoccuparti.
 
+È consigliato rigenerare gli embedding ogni volta che il GTFS viene aggiornato.
 
-# Come funziona
+Dopo aver popolato gli embedding, si procede con lo scraping delle notizie. Per farlo, eseguire:
+
+```bash
+node services/runScraper.js
+```
+
+È consigliato collegarlo a un cron job per eseguire lo scraping periodicamente, ad esempio ogni 6 ore.
+
+Il comando per l'analisi è separato, ed è possibile eseguirlo con:
+
+```bash
+node services/runAnalysis.js
+```
+
+È ragionevole eseguirlo subito dopo lo scraping, ma non necessario. Analizza solo gli articoli che non sono già stati analizzati, quindi può anche essere eseguito ripetutamente.
+
+Si può fissare un limite alla quantità di articoli da analizzare per volta con l'opzione `ARTICLE_ANALYSIS_LIMIT` in `.env` per ridurre costi. Il limite si applica a ogni operatore, quindi definisce un numero di articoli per operatore. Con un limite di 10 e 2 operatori, verranno analizzati al massimo 20 articoli.
+
+## 📤 Output 
+
+Il programma genera un risultato in un database SQLite posizionato in `storage/sqlite/articles.db`. Lo schema è lo seguente:
+
+```sql
+    operator TEXT,
+    title TEXT,
+    href TEXT,
+    content TEXT,
+    ai_result TEXT,
+    date DATE,
+    PRIMARY KEY (operator, title, date)
+```
+
+`ai_result` è un JSON che contiene le informazioni estratte dall'articolo. Il suo formato è disponibile in `utils/exampleAiResult.json`.
+
+> Attenzione: `ai_result` è nullable e non è riempito se il comando di analisi non viene eseguito.
+
+## ⚙ Come funziona l'analisi AI
 
 **Chiamata 1 a LLM**: Estrazione del titolo, domanda del se è utile l'articolo per dare dati su una deviazione. 
 
@@ -199,6 +155,19 @@ Per `suspended_stops` e `replacement_stops` si utilizza la funzione `queryStop()
 
 Il risultato di tutte queste ricerche viene combinato e restituito come un JSON arricchito, vedere output di esempio.
 
-# TODO
+## 📃 Struttura del progetto
 
-Questo codice deve essere integrato con la parte di scraping. Le parti da aggiornare sono marcate con `TODO`.
+- `analyzers/` Contiene i moduli per l'analisi AI
+- `scrapers/` Contiene i moduli per lo scraping delle notizie
+- `services/` Contiene i comandi eseguibili
+- `utils/` Contiene le funzioni di utilità
+- `storage/` Contiene i dati salvati, quindi il GTFS, Qdrant, e SQLite.
+
+## Come aggiungere un nuovo operatore
+
+1. Aggiungi un file di scraping in `scrapers/`.
+2. Aggiungi il tuo scraper al comando `services/runScraper.js`.
+3. Aggiungi le coordinate del centro dell'area di interesse nel file `.env`.
+4. Aggiungi il GTFS dell'operatore in `storage/gtfs/[operatore]/`.
+
+> Dopo aver aggiunto il GTFS non dimenticarti di rigenerare gli embedding con i servizi `updateLineEmbeddings.js` e `updateStopEmbeddings.js`.

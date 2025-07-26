@@ -1,4 +1,4 @@
-import db from "../db.js";
+import db from "../utils/db.js";
 
 const name = 'mom';
 
@@ -46,7 +46,7 @@ const scrapeLinks = async (browser) => {
     };
   });
 
-  console.log(`MOM: Raccolti ${Object.values(results).reduce((acc, arr) => acc + arr.length, 0)} elementi`);
+  console.log(`✅ MOM: Collected ${Object.values(results).reduce((acc, arr) => acc + arr.length, 0)} elements`);
 
   for (const tipo in results) {
     for (const item of results[tipo]) {
@@ -54,7 +54,7 @@ const scrapeLinks = async (browser) => {
         operator: name,
         title: item.titolo,
         href: item.href ?? 'https://mobilitadimarca.it/info-mobilita',
-        data: item.datanews ?? '', //todo: uniformare gestione delle date con traduzione mesi
+        date: item.datanews ?? '', //todo: uniformare gestione delle date con traduzione mesi
       });
 
       db.updateContent.run({
@@ -65,7 +65,7 @@ const scrapeLinks = async (browser) => {
     }
   }
 
-  console.log('MOM: Terminato');
+  console.log('✅ MOM: Completed');
 
 }
 

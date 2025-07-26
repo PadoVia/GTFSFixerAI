@@ -1,0 +1,79 @@
+{
+  "title": "FOLPO SUMMER FESTIVAL 2025",
+  "source_url": "https://www.fsbusitalia.it/it/veneto/news-veneto/2025/7/10/-folpo-summer-festival-2025--a-noventa-padovana--pd--autolinea--.html",
+  "timestamp": "2025-07-15T19:40:10.986Z",
+  "affected_lines": [
+    {
+      "route_short_name": "E073",
+      "route_id": "196",
+      "route_long_name": "STRA-NOVENTA PADOVANA-PADOVA"
+    }
+  ],
+  "suspended_stops": [
+    {
+      "stop_id": "6798",
+      "stop_code": "6737",
+      "stop_desc": "V. CADUTI SUL LAVORO",
+      "lat": "45.4123077392578",
+      "long": "11.9481954574585"
+    },
+    {
+      "stop_id": "6103",
+      "stop_code": "6027",
+      "stop_desc": "NOVENTA P. CENTRO FITNESS",
+      "lat": "45.4117622375488",
+      "long": "11.9438724517822"
+    },
+    {
+      "stop_id": null,
+      "stop_code": null,
+      "stop_desc": "Villaggio Sant’Antonio",
+      "lat": 45.4097359,
+      "long": 11.9420088
+    },
+    {
+      "stop_id": "9929",
+      "stop_code": "9922",
+      "stop_desc": "Industria 66",
+      "lat": "45.4108009338379",
+      "long": "11.9288196563721"
+    }
+  ],
+  "replacement_stops": [
+    {
+      "stop_id": null,
+      "stop_code": null,
+      "stop_desc": "Fermata provvisoria in via nona/undicesima strada",
+      "lat": 45.41081,
+      "long": 11.93114
+    },
+    {
+      "stop_id": null,
+      "stop_code": null,
+      "stop_desc": "Via Valmarana",
+      "lat": 45.4335673,
+      "long": 11.8935217
+    },
+    {
+      "stop_id": "9882",
+      "stop_code": "9874",
+      "stop_desc": "CAMIN SCUOLE R",
+      "lat": "45.3978652954102",
+      "long": "11.9445171356201"
+    }
+  ],
+  "time_intervals": [
+    {
+      "start": "2025-07-10T07:30:00.000Z",
+      "end": "2025-07-10T21:59:59.000Z"
+    },
+    {
+      "start": "2025-07-11T15:00:00.000Z",
+      "end": "2025-07-11T21:59:59.000Z"
+    },
+    {
+      "start": "2025-07-12T15:00:00.000Z",
+      "end": "2025-07-12T21:59:59.000Z"
+    }
+  ]
+}

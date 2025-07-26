@@ -1,5 +1,6 @@
 /.env
-storage/gtfs/*
+storage/gtfs/mom/*
+storage/gtfs/biv/*
 storage/qdrant/*
 
 # IDE

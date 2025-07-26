@@ -12,28 +12,35 @@ import Fuse from 'fuse.js';
 dotenv.config({ path: ['../.env'] });
 setup();
 
-const gtfsLinesVectorStore = new QdrantVectorStore({
-    url: process.env.QDRANT_URL,
-    embeddingModel: Settings.embedModel,
-    collectionName: 'gtfs-lines',
-});
+let gtfsLinesVectorStore, gtfsLinesStorageContext, reader, storageDir, data;
 
-const gtfsLinesStorageContext = storageContextFromDefaults({ vectorStore: gtfsLinesVectorStore });
+async function setContext(operator) {
+    gtfsLinesVectorStore = new QdrantVectorStore({
+        url: process.env.QDRANT_URL,
+        embeddingModel: Settings.embedModel,
+        collectionName: `gtfs-lines-${operator}`,
+    });
 
-const reader = (await VectorStoreIndex.fromVectorStore(gtfsLinesVectorStore)).queryTool({
-    metadata: {
-        name: 'gtfs_lines_reader',
-        description: 'Questo strumento fornisce le linee disponibili nel GTFS.',
-    },
-});
+    gtfsLinesStorageContext = storageContextFromDefaults({ vectorStore: gtfsLinesVectorStore });
 
-const storageDir = path.join('../storage/gtfs');
-const filePath = path.join(storageDir, 'routes.json');
+    reader = (await VectorStoreIndex.fromVectorStore(gtfsLinesVectorStore)).queryTool({
+        metadata: {
+            name: 'gtfs_lines_reader',
+            description: 'Questo strumento fornisce le linee disponibili nel GTFS.',
+        },
+    });
 
-const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    storageDir = path.join('./storage/gtfs', operator);
+
+    const filePath = path.join(storageDir, 'routes.json');
+
+    data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
 
 // Ciò che ci darà l'LLM è solo un descrittore delle linee. Dobbiamo andare a cercare nei dati GTFS per trovare esattamente la linea corrispondente.
-export async function queryLine(lineDescriptions) {
+export async function queryLine(lineDescriptions, operator) {
+    await setContext(operator);
+
     const gtfsLinesAgent = agent({
         tools: [
             await reader,
@@ -84,13 +91,17 @@ export async function queryLine(lineDescriptions) {
             Quindi linea 10 è U10, linea 3 è U03, linea 5 è U05, ecc.
         `);
 
+        if (process.env.logging) console.log('🔍 LLM search results:', queryResponse.data.result);
+
         resultingLines.push(JSON.parse(queryResponse.data.result));
     }
 
     return resultingLines
 }
 
-export async function updateLineEmbeddings() {
+export async function updateLineEmbeddings(operator) {
+    await setContext(operator);
+
     // Filtriamo per avere solo le informazioni necessarie
     const filteredData = data.map(({ route_short_name, route_id, route_long_name }) =>
         `Linea: route_short_name: ${route_short_name} | route_id: ${route_id} | route_long_name: ${route_long_name} | Fine Linea, \n\n`
@@ -100,7 +111,7 @@ export async function updateLineEmbeddings() {
         text: filteredData.join('\n')
     });
 
-    console.log(`✅ Formatted ${filteredData.length} lines in a single document.`);
+    console.log(`✅ Formatted ${filteredData.length} lines in a single document for operator ${operator}.`);
 
     await VectorStoreIndex.fromDocuments([allLines], { storageContext: await gtfsLinesStorageContext });
 }

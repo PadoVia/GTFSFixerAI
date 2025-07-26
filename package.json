@@ -18,10 +18,10 @@
   "license": "ISC",
   "author": "GVodyanov",
   "type": "module",
-  "main": "index.js",
+  "main": "services/runAnalysis.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js",
+    "start": "node services/runAnalysis.js",
+    "dev": "nodemon services/runAnalysis.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {

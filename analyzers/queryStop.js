@@ -12,21 +12,35 @@ import Fuse from 'fuse.js';
 dotenv.config({ path: ['../.env'] });
 setup();
 
-const gtfsStopsVectorStore = new QdrantVectorStore({
-    url: process.env.QDRANT_URL,
-    embeddingModel: Settings.embedModel,
-    collectionName: 'gtfs-stops',
-});
+let gtfsStopsVectorStore, gtfsStopsStorageContext, reader, storageDir, data;
 
-const gtfsStopsStorageContext = storageContextFromDefaults({ vectorStore: gtfsStopsVectorStore });
+async function setContext(operator) {
+    gtfsStopsVectorStore = new QdrantVectorStore({
+        url: process.env.QDRANT_URL,
+        embeddingModel: Settings.embedModel,
+        collectionName: `gtfs-stops-${operator}`,
+    });
 
-const storageDir = path.join('../storage/gtfs');
-const filePath = path.join(storageDir, 'stops.json');
+    gtfsStopsStorageContext = storageContextFromDefaults({ vectorStore: gtfsStopsVectorStore });
 
-const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    reader = (await VectorStoreIndex.fromVectorStore(gtfsStopsVectorStore)).queryTool({
+        metadata: {
+            name: 'gtfs_stops_reader',
+            description: 'Questo strumento fornisce le fermate disponibili nel GTFS.',
+        },
+    });
+
+    storageDir = path.join('./storage/gtfs', operator);
+
+    const filePath = path.join(storageDir, 'stops.json');
+
+    data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
 
 // Ciò che ci darà l'LLM è solo un descrittore delle fermate. Dobbiamo andare a cercare nei dati GTFS per trovare esattamente la fermata corrispondente.
-export async function queryStops(stopDescriptions) {
+export async function queryStops(stopDescriptions, operator) {
+    await setContext(operator);
+
     const resultingStops = [];
 
     for (const stopDescription of stopDescriptions) {
@@ -45,7 +59,7 @@ export async function queryStops(stopDescriptions) {
         }
 
         // Terzo tentativo, usiamo il servizio di Google Maps per cercare la fermata
-        const mapsResult = await mapsSearchStop(stopDescription);
+        const mapsResult = await mapsSearchStop(stopDescription, operator);
         resultingStops.push(mapsResult);
     }
 
@@ -61,7 +75,7 @@ async function fuzzySearchStop(stopDescription) {
 
     const bestMatches = fuse.search(stopDescription);
 
-    console.log('🔍 Fuzzy search top result:', bestMatches[0]);
+    if (process.env.logging) console.log('🔍 Fuzzy search top result:', bestMatches[0]);
 
     if (bestMatches.length) return {
         stop_id: bestMatches[0].item.stop_id,
@@ -98,7 +112,7 @@ async function llmSearchStop(stopDescription) {
             `
             })
 
-    console.log('🔍 LLM search results:', result.response);
+    if (process.env.logging) console.log('🔍 Vector comparison search results:', result.response);
 
     if (result.response === 'null') return null;
 
@@ -118,14 +132,14 @@ const placesClient = new PlacesClient({
     apiKey: process.env.GOOGLE_MAPS_TOKEN,
 });
 
-async function mapsSearchStop(stopDescription) {
+async function mapsSearchStop(stopDescription, operator) {
     const request = {
         textQuery: stopDescription,
         locationBias: {
             circle: {
                 center: {
-                    latitude: 45.4092,
-                    longitude: 11.8778,
+                    latitude: process.env[`${operator.toUpperCase()}_CENTER_LATITUDE`] || 45.4092,
+                    longitude: process.env[`${operator.toUpperCase()}_CENTER_LONGITUDE`] || 11.8778,
                 },
                 radius: 500.0,
             },
@@ -145,7 +159,7 @@ async function mapsSearchStop(stopDescription) {
 
         const response = (await placesClient.searchText(request, options))[0];
 
-        console.log('🔍 Maps search results:', response);
+        if (process.env.logging) console.log('🔍 Maps search results:', response);
 
         if (
             response.places &&
@@ -170,7 +184,9 @@ async function mapsSearchStop(stopDescription) {
     }
 }
 
-export async function updateStopEmbeddings() {
+export async function updateStopEmbeddings(operator) {
+    await setContext(operator)
+
     // Create a document for each stop
     const documents = data.map(({ stop_id, stop_desc }) => {
         const stopText = `Fermata: (ID: ${stop_id} Nome: ${stop_desc})`;

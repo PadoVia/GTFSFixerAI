@@ -1,4 +1,4 @@
-import db from "../db.js";
+import db from "../utils/db.js";
 
 const name = 'biv';
 
@@ -29,13 +29,13 @@ const scrapeLinks = async (browser) => {
         operator: name,
         title: item.titolo,
         href: item.href,
-        data: item.data //todo: uniformare gestione delle date con traduzione mesi
+        date: item.data //todo: uniformare gestione delle date con traduzione mesi
       });
     }
 
     allItems.push(...items);
 
-    console.log(`BIV: Raccolti ${allItems.length} elementi...`);
+    console.log(`✅ BIV: Collected ${allItems.length} elements`);
 
     // Controlla se c'è il pulsante "Next" visibile
     hasNextPage = await page.evaluate(() => {
@@ -61,7 +61,7 @@ const scrapeLinks = async (browser) => {
       ).catch(() => false);
 
       if (!changed) {
-        console.log('Contenuto non cambiato dopo click, termino ciclo.');
+        console.log('✅ Content did not change after click, stopping pagination.');
         break;
       }
     }
@@ -79,7 +79,7 @@ const scrapeContent = async (browser, href, title) => {
       return divs.map(div => div.innerText.trim()).join('\n\n');
     });
 
-    console.log(`BIV: Raccolto contenuto per ${title}: ${articleContent.length} caratteri`);
+    console.log(`✅ BIV: Collected content for ${title}: ${articleContent.length} characters`);
 
     db.updateContent.run({
       operator: name,

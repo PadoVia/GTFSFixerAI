@@ -1,5 +1,12 @@
-import { updateLineEmbeddings} from '../lib/queryLine.js';
+import { updateLineEmbeddings} from '../analyzers/queryLine.js';
+import fs from 'fs';
+const operators = fs.readdirSync('../storage/gtfs', { withFileTypes: true })
+    .filter(dirent => dirent.isDirectory())
+    .map(dirent => dirent.name);
+console.log('🚏 Available operators:', operators)
 
-updateLineEmbeddings().then(() => {
-    console.log('✅ Embeddings of GTFS lines updated.');
-});
+for (const operator of operators) {
+    await updateLineEmbeddings(operator).then(() => {
+        console.log(`✅ Embeddings of GTFS lines updated for operator ${operator}`);
+    });
+}

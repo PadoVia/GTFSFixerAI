@@ -11,7 +11,7 @@ export default function setup() {
     }
 
     Settings.llm = new OpenAI({
-        model: 'gpt-3.5-turbo',
+        model: process.env.OPENAI_MODEL,
         apiKey: process.env.OPENAI_API_KEY,
     });
 
