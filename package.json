@@ -1,0 +1,43 @@
+{
+  "name": "gtfsfixerai",
+  "version": "1.0.0",
+  "description": "gtfs fixer AI",
+  "keywords": [
+    "gtfs",
+    "fix",
+    "ai"
+  ],
+  "homepage": "https://github.com/PadoVia/GTFSFixerAI#readme",
+  "bugs": {
+    "url": "https://github.com/PadoVia/GTFSFixerAI/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PadoVia/GTFSFixerAI.git"
+  },
+  "license": "ISC",
+  "author": "GVodyanov",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@googlemaps/places": "^2.1.0",
+    "@llamaindex/core": "^0.6.13",
+    "@llamaindex/openai": "^0.4.7",
+    "@llamaindex/qdrant": "^0.1.23",
+    "@llamaindex/workflow": "^1.1.13",
+    "chrono-node": "^2.8.3",
+    "dotenv": "^17.2.0",
+    "fuse": "^0.12.1",
+    "fuse.js": "^7.1.0",
+    "llamaindex": "^0.11.13",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}
