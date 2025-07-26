@@ -1,3 +1,12 @@
 /.env
 storage/gtfs/*
 storage/qdrant/*
+
+# IDE
+.idea
+
+# JS MODULES
+node_modules
+
+# DB
+articoli.db
