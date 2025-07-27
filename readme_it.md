@@ -1,4 +1,4 @@
-# AI Detour Analyzer for updating GTFS data
+# Analizzatore AI di deviazioni per GTFS
 
 > 🇬🇧 [English version](readme.md)
 
