@@ -15,7 +15,7 @@
     "type": "git",
     "url": "git+https://github.com/PadoVia/GTFSFixerAI.git"
   },
-  "license": "ISC",
+  "license": "MPL-2.0",
   "author": "GVodyanov",
   "type": "module",
   "main": "services/runAnalysis.js",
