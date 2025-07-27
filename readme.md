@@ -1,173 +1,175 @@
-# GTFSFixerAI
+# Analizzatore AI di deviazioni per GTFS
 
-**GTFSFixerAI** è uno strumento basato su intelligenza artificiale per l'estrazione automatica delle deviazioni del servizio di trasporto pubblico locale (TPL) da fonti testuali non strutturate. Il sistema supporta l’aggiornamento semiautomatico dei feed GTFS a partire da comunicazioni pubblicate sui siti ufficiali degli operatori.
+> 🇬🇧 [Versione in italiano](readme_it.md)
 
-Correntemente contiene il supporto per i seguenti operatori:
-- BusItalia Veneto, Padova (biv)
+**GTFSFixerAI** is an AI-powered tool for the automatic extraction of public transport service detours from unstructured textual sources. The system supports the semi-automatic updating of GTFS feeds based on communications published on official operator websites.
+
+Currently, it supports the following operators:
+- BusItalia Veneto, Padua (biv)
 - Mobilità di Marca, Treviso (mom)
 
----
+---  
 
-## 🚀 Feature
+## 🚀 Features
 
-Questa prima fase del progetto si occupa di:
+This first phase of the project focuses on:
 
-- Scraping delle notizie da fonti ufficiali (ad es. siti MOM e BIVE)
-- Parsing automatico del testo tramite un modulo AI (LLM)
-  - Estrazione delle **fermate sospese**
-  - Estrazione delle **fermate sostitutive** 
-  - Estrazione degli **intervalli di tempo** interessati
-  - Estrazione delle **linee interessate** 
-- Verifica e geolocalizzazione delle fermate tramite **Google Places API**
-- Generazione di un output in **JSON standardizzato**, utile per il patching manuale o automatico dei feed GTFS, salvato in un database SQLite assieme ad uno storico di articoli.
+- Scraping news from official sources (e.g., MOM and BIVE websites)
+- Automatic text parsing via an AI module (LLM)
+    - Extraction of **suspended stops**
+    - Extraction of **replacement stops**
+    - Extraction of **affected time intervals**
+    - Extraction of **affected lines**
+- Verification and geolocation of stops using the **Google Places API**
+- Generation of a standardized **JSON output**, useful for manual or automatic patching of GTFS feeds, saved in an SQLite database along with a history of articles.
 
-## ⚠️Dipendenze e configurazione
+## ⚠️ Dependencies and Configuration
 
-**Requisito 1**: Istallare il database **Qdrant**. Si consiglia di eseguirlo come segue:
+**Requirement 1**: Install the **Qdrant** database. It is recommended to run it as follows:
 
 ```bash  
-docker pull qdrant/qdrant  
+docker pull qdrant/qdrant 
 docker run -p 6333:6333 -v $(pwd)/storage/qdrant:/qdrant/storage qdrant/qdrant  
 ```  
 
-**Requisito 2** Riempire `storage/gtfs/` con il GTFS in formato **JSON**: Ogni operatore deve avere una sua cartella, nel nostro caso `storage/gtfs/mom/` e `storage/gtfs/biv/`. Gli unici file necessari sono `stops.json` e `routes.json`.
+**Requirement 2**: Fill `storage/gtfs/` with the GTFS in **JSON** format: Each operator must have its own folder, in our case `storage/gtfs/mom/` and `storage/gtfs/biv/`. The only required files are `stops.json` and `routes.json`.
 
-**Requisito 3**: Creare un file `.env` nella cartella principale del progetto. Un esempio di file `.env` è disponibile in `utils/exampleEnv`.
+**Requirement 3**: Create a `.env` file in the project's root folder. An example `.env` file is available in `utils/exampleEnv`.
 
-### Configurazione `.env`
+### `.env` Configuration
 
-- `LOGGING_LEVEL` Il logging level è configurabile con due modalità, prod (`0`) e debug (`1`).
-- `OPENAI_MODEL` Il modello OpenAI da utilizzare per l'analisi. Si consiglia di utilizzare `gpt-3.5-turbo`.
-- `ARTICLE_ANALYSIS_LIMIT` Il numero massimo di articoli da analizzare per volta. Spiegato meglio nella sezione "Esecuzione".
-- `[operator]_CENTER_LATITUDE` e `[operator]_CENTER_LONGITUDE` Le coordinate del centro dell'area di interesse per ogni operatore, utilizzate per il bias dato all'API di Google Places. Da configurare per ogni operatore utilizzato.
+- `LOGGING_LEVEL` The logging level can be configured in two modes: production (`0`) and debug (`1`).
+- `OPENAI_MODEL` The OpenAI model to use for analysis. It is recommended to use `gpt-3.5-turbo`.
+- `ARTICLE_ANALYSIS_LIMIT` The maximum number of articles to analyze at once. Explained in more detail in the "Execution" section.
+- `[operator]_CENTER_LATITUDE` and `[operator]_CENTER_LONGITUDE` The coordinates of the center of the area of interest for each operator, used for bias in the Google Places API. Must be configured for each operator used.
 
-## ➡ Esecuzione
+## ➡ Execution
 
-I vari comandi eseguibili si trovano in `services/`. Prima di fare analisi è necessario popolare gli embedding vettoriali in Qdrant sulla base del GTFS. Per fare ciò è necessario eseguire questi comandi:
+The executable commands are located in `services/`. Before performing analysis, it is necessary to populate the vector embeddings in Qdrant based on the GTFS. To do this, run the following commands:
 
-```bash
-node services/updateLineEmbeddings.js
-node services/updateStopEmbeddings.js
-```
+```bash  
+node services/updateLineEmbeddings.js  
+node services/updateStopEmbeddings.js  
+```  
 
-Il secondo comando potrebbe richiedere un po' di tempo, a seconda delle dimensioni del GTFS. Se è meno di 20 minuti non preoccuparti.
+The second command may take some time, depending on the size of the GTFS. If it takes less than 20 minutes, don’t worry.
 
-È consigliato rigenerare gli embedding ogni volta che il GTFS viene aggiornato.
+It is recommended to regenerate the embeddings every time the GTFS is updated.
 
-Dopo aver popolato gli embedding, si procede con lo scraping delle notizie. Per farlo, eseguire:
+After populating the embeddings, proceed with scraping the news. To do so, run:
 
-```bash
-node services/runScraper.js
-```
+```bash  
+node services/runScraper.js  
+```  
 
-È consigliato collegarlo a un cron job per eseguire lo scraping periodicamente, ad esempio ogni 6 ore.
+It is recommended to set this up as a cron job to run scraping periodically, for example every 6 hours.
 
-Il comando per l'analisi è separato, ed è possibile eseguirlo con:
+The analysis command is separate and can be executed with:
 
-```bash
-node services/runAnalysis.js
-```
+```bash  
+node services/runAnalysis.js  
+```  
 
-È ragionevole eseguirlo subito dopo lo scraping, ma non necessario. Analizza solo gli articoli che non sono già stati analizzati, quindi può anche essere eseguito ripetutamente.
+It is reasonable to run it immediately after scraping, but not necessary. It only analyzes articles that have not yet been analyzed, so it can also be run repeatedly.
 
-Si può fissare un limite alla quantità di articoli da analizzare per volta con l'opzione `ARTICLE_ANALYSIS_LIMIT` in `.env` per ridurre costi. Il limite si applica a ogni operatore, quindi definisce un numero di articoli per operatore. Con un limite di 10 e 2 operatori, verranno analizzati al massimo 20 articoli.
+You can set a limit on the number of articles to analyze at once using the `ARTICLE_ANALYSIS_LIMIT` option in `.env` to reduce costs. The limit applies per operator, so it defines a number of articles per operator. With a limit of 10 and 2 operators, a maximum of 20 articles will be analyzed.
 
-## 📤 Output 
+## 📤 Output
 
-Il programma genera un risultato in un database SQLite posizionato in `storage/sqlite/articles.db`. Lo schema è lo seguente:
+The program generates results in an SQLite database located at `storage/sqlite/articles.db`. The schema is as follows:
 
-```sql
-    operator TEXT,
-    title TEXT,
-    href TEXT,
-    content TEXT,
-    ai_result TEXT,
-    date DATE,
-    PRIMARY KEY (operator, title, date)
-```
+```sql  
+    operator TEXT,  
+    title TEXT,  
+    href TEXT,  
+    content TEXT,  
+    ai_result TEXT,  
+    date DATE,  
+    PRIMARY KEY (operator, title, date)  
+```  
 
-`ai_result` è un JSON che contiene le informazioni estratte dall'articolo. Il suo formato è disponibile in `utils/exampleAiResult.json`.
+`ai_result` is a JSON containing the information extracted from the article. Its format is available in `utils/exampleAiResult.json`.
 
-> Attenzione: `ai_result` è nullable e non è riempito se il comando di analisi non viene eseguito.
+> Note: `ai_result` is nullable and will not be filled if the analysis command is not executed.
 
-## ⚙ Come funziona l'analisi AI
+## ⚙ How the AI Analysis Works
 
-**Chiamata 1 a LLM**: Estrazione del titolo, domanda del se è utile l'articolo per dare dati su una deviazione. 
+**First LLM Call**: Extraction of the title and determination of whether the article is useful for providing data on a detour.
 
-Se la risposta è negativa, il programma restituisce un JSON vuoto simile al seguente:
+If the answer is negative, the program returns an empty JSON similar to the following:
 
-```json
-{
-  "title": "Titolo dell'articolo",
-  "source_url": "[URL dell'articolo]",
-  "timestamp": "2025-07-15T20:03:53.635Z",
-  "affected_lines": [],
-  "suspended_stops": [],
-  "replacement_stops": [],
-  "time_intervals": null
-}
-```
+```json  
+{  
+  "title": "Article title",  
+  "source_url": "[Article URL]",  
+  "timestamp": "2025-07-15T20:03:53.635Z",  
+  "affected_lines": [],  
+  "suspended_stops": [],  
+  "replacement_stops": [],  
+  "time_intervals": null  
+}  
+```  
 
-Se la risposta è positiva, procediamo chiedendo più informazioni.
+If the answer is positive, we proceed by requesting more information.
 
-**Chiamata 2 a LLM**: Estrazione delle informazioni principali della deviazione. Questa chiamata produce un risultato di questo tipo:
+**Second LLM Call**: Extraction of key detour details. This call produces a result like this:
 
-```json
-{
-    "affected_lines": ["E073 PADOVA – NOVENTA P. - STRA"],
-    "suspended_stops": ["Via Caduti sul Lavoro", "Centro Fitness", "Villaggio Sant’Antonio", "Bar Industria"],
-    "replacement_stops": ["Fermata provvisoria in via nona/undicesima strada", "Via Valmarana", "Noventa scuole"],
-    "time_intervals": [
-        {
-            "start": "2025-07-10 09:30:00",
-            "end": "2025-07-10 23:59:59"
-        },
-        {
-            "start": "2025-07-11 17:00:00",
-            "end": "2025-07-11 23:59:59"
-        },
-        {
-            "start": "2025-07-12 17:00:00",
-            "end": "2025-07-12 23:59:59"
-        }
-    ]
-}
-```
+```json  
+{  
+    "affected_lines": ["E073 PADOVA – NOVENTA P. - STRA"],  
+    "suspended_stops": ["Via Caduti sul Lavoro", "Centro Fitness", "Villaggio Sant’Antonio", "Bar Industria"],  
+    "replacement_stops": ["Temporary stop at via nona/undicesima strada", "Via Valmarana", "Noventa scuole"],  
+    "time_intervals": [  
+        {  
+            "start": "2025-07-10 09:30:00",  
+            "end": "2025-07-10 23:59:59"  
+        },  
+        {  
+            "start": "2025-07-11 17:00:00",  
+            "end": "2025-07-11 23:59:59"  
+        },  
+        {  
+            "start": "2025-07-12 17:00:00",  
+            "end": "2025-07-12 23:59:59"  
+        }  
+    ]  
+}  
+```  
 
-Questa risposta di per sè però non è particolarmente utile, in quanto non contiene riferimenti precisi.
+However, this raw response is not particularly useful as it lacks precise references.
 
-Di conseguenza il JSON "crudo" deve essere arricchito.
+Therefore, the "raw" JSON must be enriched.
 
-Per `time_intervals` esiste la funzione `processDateRanges()` che utilizza la libreria `chrono-node` per convertire una stringa in un time stamp preciso.
+For `time_intervals`, the `processDateRanges()` function uses the `chrono-node` library to convert a string into a precise timestamp.
 
-Per `affected_lines` si utilizza la funzione `queryLine()`. Questa funzione ha due modi di collegare la descrizione della linea con la linea effettiva nel GTFS:
+For `affected_lines`, the `queryLine()` function is used. This function has two ways to match the line description with the actual line in the GTFS:
 
-1. Ricerca per paragono diretto di stringhe, fatta con `fuze.js`.
-2. Ricerca tramite un LLM, collegato con RAG a un database vettoriale contenuto in Qdrant chiamato `gtfs-lines`.
+1. Direct string matching search, done with `fuse.js`.
+2. Search via an LLM, linked with RAG to a vector database stored in Qdrant called `gtfs-lines-[operator]`.
 
-Il secondo modo è chiamato solo se il primo fallisce di trovare un risultato.
+The second method is only called if the first fails to find a result.
 
-Per `suspended_stops` e `replacement_stops` si utilizza la funzione `queryStop()`. In questo caso, la ricerca avviene in tre modi:
+For `suspended_stops` and `replacement_stops`, the `queryStop()` function is used. In this case, the search happens in three ways:
 
-1. Ricerca per paragono diretto di stringhe, fatta con `fuze.js`.
-2. Ricerca tramite paragono direttore di embedding vettoriali, fatta con `vectorQueryEngine` di `LlamaIndex`. Gli embedding vettoriali sono salvati in `gtfs-stops`.
-3. Ricerca attraverso il Place API di Google Maps, che può identificare solo coordinate geografiche ma chiaramente non fermate. Questo è per quando si invetano una fermata che non esiste nel GTFS.
+1. Direct string matching search, done with `fuse.js`.
+2. Direct vector embedding matching search, done with `vectorQueryEngine` from `LlamaIndex`. The vector embeddings are stored in `gtfs-stops-[operator]`.
+3. Search via the Google Maps Places API, which can only identify geographic coordinates but not stops. This is for cases where a stop is invented that does not exist in the GTFS.
 
-Il risultato di tutte queste ricerche viene combinato e restituito come un JSON arricchito, vedere output di esempio.
+The results of all these searches are combined and returned as an enriched JSON (see example output).
 
-## 📃 Struttura del progetto
+## 📃 Project Structure
 
-- `analyzers/` Contiene i moduli per l'analisi AI
-- `scrapers/` Contiene i moduli per lo scraping delle notizie
-- `services/` Contiene i comandi eseguibili
-- `utils/` Contiene le funzioni di utilità
-- `storage/` Contiene i dati salvati, quindi il GTFS, Qdrant, e SQLite.
+- `analyzers/` Contains AI analysis modules
+- `scrapers/` Contains news scraping modules
+- `services/` Contains executable commands
+- `utils/` Contains utility functions
+- `storage/` Contains saved data, including GTFS, Qdrant, and SQLite.
 
-## Come aggiungere un nuovo operatore
+## How to Add a New Operator
 
-1. Aggiungi un file di scraping in `scrapers/`.
-2. Aggiungi il tuo scraper al comando `services/runScraper.js`.
-3. Aggiungi le coordinate del centro dell'area di interesse nel file `.env`.
-4. Aggiungi il GTFS dell'operatore in `storage/gtfs/[operatore]/`.
+1. Add a scraping file in `scrapers/`.
+2. Add your scraper to the `services/runScraper.js` command.
+3. Add the coordinates of the area of interest center in the `.env` file.
+4. Add the operator's GTFS in `storage/gtfs/[operator]/`.
 
-> Dopo aver aggiunto il GTFS non dimenticarti di rigenerare gli embedding con i servizi `updateLineEmbeddings.js` e `updateStopEmbeddings.js`.
+> After adding the GTFS, don’t forget to regenerate the embeddings using the `updateLineEmbeddings.js` and `updateStopEmbeddings.js` services.

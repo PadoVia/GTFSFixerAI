@@ -61,6 +61,7 @@ const scrapeLinks = async (browser) => {
         content: item.testo ?? '',
         title: item.titolo,
         operator: name,
+        date: item.datanews ?? '',
       });
     }
   }
