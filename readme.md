@@ -1,6 +1,6 @@
 # Analizzatore AI di deviazioni per GTFS
 
-> 🇬🇧 [Versione in italiano](readme_it.md)
+> 🇮🇹 [Versione in italiano](readme_it.md)
 
 **GTFSFixerAI** is an AI-powered tool for the automatic extraction of public transport service detours from unstructured textual sources. The system supports the semi-automatic updating of GTFS feeds based on communications published on official operator websites.
 
