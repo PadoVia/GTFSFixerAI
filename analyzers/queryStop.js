@@ -114,13 +114,15 @@ async function llmSearchStop(stopDescription) {
 
     if (process.env.logging) console.log('🔍 Vector comparison search results:', result.response);
 
-    if (result.response === 'null') return null;
+    if (result.response.toLowerCase().includes('null')) return null;
 
     // Ora dobbiamo cercare le altre informazioni della fermata nei dati GTFS
-    const stop = data.find(s => s.stop_id === result.response.trim());
+    console.log('🔍 Searching for stop in GTFS data with ID:', result.response.trim());
+    const stop = data.find(s => s.stop_id === parseInt(result.response.trim()));
+
+    if (stop === undefined) return null;
 
     return {
-        stop_id: stop.stop_id,
         stop_code: stop.stop_code,
         stop_desc: stop.stop_desc,
         lat: stop.stop_lat,

@@ -43,6 +43,8 @@ async function executeAnalysis(article, sourceUrl, operator = 'biv') {
         
         Se non hai abbastanza informazioni per rispondere, rispondi con "null".
         
+        Non includere \`\`\`json o altra formattazione markdown, solo formato JSON
+        
         L'articolo che ti fornirò è il seguente:
         ${article}
         `,
@@ -84,7 +86,7 @@ const initialQuery = `
     L'articolo riguarda una deviazione? Ha senso modificare le fermate del GTFS per questo articolo? Rispondi con 1 per sì e con 0 per no.
    
     Se l'articolo coinvolge solo le linee di solo Rovigo, non è necessario modificare i dati GTFS, rispondi con 0 per is_necessary. Linee che vanno da Padova a Rovigo sono comunque utili per il GTFS, quindi rispondi con 1 per quelle.
-    
+        
     Voglio la risposta in questo formato JSON:
     {
         "title": "Il titolo dell'articolo",
