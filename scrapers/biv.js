@@ -68,7 +68,7 @@ const scrapeLinks = async (browser) => {
   }
 }
 
-const scrapeContent = async (browser, href, title) => {
+const scrapeContent = async (browser, href, title, date) => {
   const page = await browser.newPage();
 
   await page.goto(href, { waitUntil: 'load' });
@@ -84,7 +84,8 @@ const scrapeContent = async (browser, href, title) => {
     db.updateContent.run({
       operator: name,
       title: title,
-      content: articleContent
+      content: articleContent,
+      date: date
     });
 
     page.close()

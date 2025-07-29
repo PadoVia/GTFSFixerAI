@@ -31,7 +31,7 @@ import pLimit from 'p-limit';
       }
 
       return limit(() =>
-        scraper.scrapeContent(browser, row.href, row.title).catch(err =>
+        scraper.scrapeContent(browser, row.href, row.title, row.date).catch(err =>
           console.error(`Error with ${row.title}:`, err)
         )
       );
